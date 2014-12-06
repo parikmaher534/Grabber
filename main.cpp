@@ -12,8 +12,9 @@ int main(int argc, char *argv[])
 		else {
 			cout << "Please set site URL." << endl;
 		}
-	} catch(exception& e) {
-		cout << "ERROR: " << e.what() << endl;	
+	} catch (const char* msg) {
+	    cerr << msg << endl;
+		exit(1);
 	}
 
 	return 0;	
