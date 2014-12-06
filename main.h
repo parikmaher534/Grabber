@@ -1,6 +1,8 @@
 #include <iostream>
 #include <exception>
 #include <vector>
+#include <regex>
+#include <sys/stat.h>
 
 #include "helpers.cpp"
 #include "items/file.cpp"
