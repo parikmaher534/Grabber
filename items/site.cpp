@@ -4,6 +4,7 @@ class Project
 		Project(char* url);
 		string name;
 		string url;
+		string domain;
 		vector<Page*> Pages;
 	private:
 		string GetProjectName();
@@ -27,7 +28,7 @@ string Project::GetProjectName()
 {
 	cmatch _match;
 
-	regex_match(url.c_str(), _match, regex("[a-z:/]+/([a-z.]+).*"));
+	regex_match(url.c_str(), _match, regex("[a-z:/]+/([a-z0-9.]+).*"));
 
 	return _match[1];	
 }

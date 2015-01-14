@@ -8,6 +8,8 @@ using namespace std;
 int downloadFile(string address, string filename) {
 	FILE *pipe;
 	
+	errno = 0;
+
 	string commandName = "curl -s -o";
 	string command = commandName+ " " +filename+ " " +address;
 

@@ -6,6 +6,7 @@ class Page
 	public:
 		Page(char* projectUrl, string projectName);
 		string url;
+		string pageDir;
 		string projectName;
 		string filePath;
 		string name;
@@ -19,6 +20,7 @@ class Page
 		void CreatePageDir();
 		void DownloadPage();
 	    void ParseHTML();
+		void FindStyles(GumboNode* node);
 };
 
 
@@ -43,63 +45,99 @@ string Page::GetPageName()
 	regex_match(url.c_str(), _match, regex("[a-z:/]+/([a-z.]+)([a-z0-9./_-]+)"));
 	s_match += _match[2];
 
+	if( s_match == "/" ) return "index";
+
+	s_match = s_match.substr(1, s_match.length());	
+
 	return regex_replace(s_match, regex("(/)"), "_");
 }
 
 void Page::CreatePageDir()
 {
-	int status = mkdir((projectName + "/" + name).c_str(), S_IRWXU);
+	Page::pageDir = projectName + "/" + name;
+	int status = mkdir(Page::pageDir.c_str(), S_IRWXU);
 	
 	if( status == -1 ) {
 		cout << "-----| Create page directory error: " << strerror(errno) << endl;
 	} else {
-		cout << "-----| Page directory was succesfuly created. " << endl;
+		cout << "-----| Page directory was successfully created. " << endl;
 	}
 }
 
 void Page::DownloadPage()
 {
-	string pathToFile = (projectName + "/" + name);
+	if( name.find(".") == string::npos ) Page::filePath = Page::pageDir + "/index.html";
 
-	if( name.find(".") == string::npos ) pathToFile += "/index.html";
-
-	Page::filePath = pathToFile;
-
-	if( downloadFile(url, pathToFile.c_str()) == 0 ) {
+	if( downloadFile(url, Page::filePath.c_str()) != 0 ) {
 		cout << "-----| Page file download error."<< endl;
 	};
 }
 
-void Page::ParseHTML() 
-{
-	cout << "Start parsing page..." << endl;
 
-	ifstream htmlSource(filePath);
-    string html((istreambuf_iterator<char>(htmlSource)), istreambuf_iterator<char>());
+void Page::FindStyles(GumboNode* node) {
+	if( node->type != GUMBO_NODE_ELEMENT ) {
+		return;
+	}
 
-	/* Get all CSS files */
-	regex pattern("<link.+>");
-	regex_iterator<string::iterator> it(html.begin(), html.end(), pattern);
-	regex_iterator<string::iterator> end;
+	if( node->v.element.tag == GUMBO_TAG_LINK ) {
+		GumboAttribute* href = gumbo_get_attribute(&node->v.element.attributes, "href");
+		GumboAttribute* type = gumbo_get_attribute(&node->v.element.attributes, "type");
+	
+		if( type ) {
+			string typeVal = type->value;
+			string value = href->value;
+			string cssPath, cssName;
 
-	for( ; it != end; ++it ) {
-		string temp = it->str();
-		string hrefSign = "href=\"";
+			if( typeVal == "text/css" ) {
+				
+				//If absolute path
+				if( value.compare(0,1, "/") == 0 ) {
+					cssPath = projectName + value;
+				
+				//If path to styles relative
+				} else {
+					if( name == "index" ) {
+						cssPath = projectName + value;	
+					} else {
+						cssPath = projectName + name + value;	
+					}
+				}
 
-		int hrefSignPos = temp.find(hrefSign);
-		int hrefSignPosEnd;
+				//Get CSS file name
+				cmatch _match;
+				regex_match(href->value, _match, regex(".+/(.+)$"));
+				cssName = _match[1];
 
-		//Do we have HREF attr
-		if( hrefSignPos != string::npos ) {
-			temp = temp.substr(hrefSignPos + hrefSign.size(), -1);
-			hrefSignPosEnd = temp.find("\"");
-
-			//Is href attr valid
-			if( hrefSignPosEnd != string::npos ) {
-				temp = temp.substr(0, hrefSignPosEnd);
+				//Load css file
+				if( downloadFile(cssPath, (Page::pageDir + "/css/" + cssName ).c_str() ) != 0 ) {
+					cout << "-----| Page file download error."<< endl;
+				};
 			}
 		}
 	}
+
+	GumboVector* children = &node->v.element.children;
+
+	for( int i = 0; i < children->length; i++ ) {
+		Page::FindStyles(static_cast<GumboNode*>(children->data[i]));	
+	}
+}
+
+
+void Page::ParseHTML() 
+{
+	ifstream htmlSource(filePath);
+    string html((istreambuf_iterator<char>(htmlSource)), istreambuf_iterator<char>());
+
+	//Create CSS dir
+	if( mkdir((Page::pageDir + "/css").c_str(), S_IRWXU) == -1 ) {
+		cout << "-----| Create CSS directory error: " << strerror(errno) << endl;
+	};
+	
+	/* Use GUMBO to parse and load styles */
+    GumboOutput* out = gumbo_parse(html.c_str());	
+	Page::FindStyles(out->root);
+	//TODO: find and load images
 }
 
 

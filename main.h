@@ -3,6 +3,7 @@
 #include <regex>
 #include <sys/stat.h>
 #include <algorithm>
+#include <gumbo.h>
 
 #include "helpers.cpp"
 #include "items/file.cpp"
