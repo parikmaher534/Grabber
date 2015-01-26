@@ -42,12 +42,10 @@ string Page::GetPageName()
 	string s_match;
 	cmatch _match;
 
-	regex_match(url.c_str(), _match, regex("[a-z:/]+/([a-z.]+)([a-z0-9./_-]+)"));
-	s_match += _match[2];
+	regex_match(url.c_str(), _match, regex("(http://|https://){0,}(www.){0,}([a-zA-Z0-9.]+)/{0,}([a-zA-Z0-9/.]{0,})"));
+	s_match += _match[4];
 
-	if( s_match == "/" ) return "index";
-
-	s_match = s_match.substr(1, s_match.length());	
+	if( s_match == "/" || s_match == "" ) return "index";
 
 	return regex_replace(s_match, regex("(/)"), "_");
 }
@@ -77,6 +75,10 @@ void Page::DownloadPage()
 void Page::FindStyles(GumboNode* node) {
 	if( node->type != GUMBO_NODE_ELEMENT ) {
 		return;
+	}
+
+	if( node->v.element.tag == GUMBO_TAG_STYLE ) {
+		cout << "STYLE" << endl;
 	}
 
 	if( node->v.element.tag == GUMBO_TAG_LINK ) {
