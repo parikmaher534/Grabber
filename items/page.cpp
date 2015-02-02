@@ -156,7 +156,7 @@ void Page::FindImages(GumboNode* node) {
 		) {
 			imgPath = value;	
 		}
-		//If path to styles relative
+		//If path to iameg is relative
 		else {
 			if( name == "index" ) {
 				imgPath = projectName + value;	
@@ -165,12 +165,12 @@ void Page::FindImages(GumboNode* node) {
 			}
 		}
 
-		//Get CSS file name
+		//Get image name
 		cmatch _match;
 		regex_match(src->value, _match, regex(".+/(.+)$"));
 		imgName = _match[1];
 
-		//Load css file
+		//Load image
 		if( downloadFile(imgPath, (Page::pageDir + "/images/" + imgName ).c_str() ) != 0 ) {
 			cout << "-----| Page file download error."<< endl;
 		};
