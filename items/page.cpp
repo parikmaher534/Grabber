@@ -21,6 +21,7 @@ class Page
 		void DownloadPage();
 	    void ParseHTML();
 		void FindStyles(GumboNode* node);
+		void FindImages(GumboNode* node);
 };
 
 
@@ -42,7 +43,7 @@ string Page::GetPageName()
 	string s_match;
 	cmatch _match;
 
-	regex_match(url.c_str(), _match, regex("(http://|https://){0,}(www.){0,}([a-zA-Z0-9.]+)/{0,}([a-zA-Z0-9/.]{0,})"));
+	regex_match(url.c_str(), _match, regex("(https?://)*(www.)*([a-zA-Z0-9.]+)/*([a-zA-Z0-9/.]*)"));
 	s_match += _match[4];
 
 	if( s_match == "/" || s_match == "" ) return "index";
@@ -72,14 +73,14 @@ void Page::DownloadPage()
 }
 
 
+//TODO: make common function fot FindStyles and FindImages
+
 void Page::FindStyles(GumboNode* node) {
 	if( node->type != GUMBO_NODE_ELEMENT ) {
 		return;
 	}
 
-	if( node->v.element.tag == GUMBO_TAG_STYLE ) {
-		cout << "STYLE" << endl;
-	}
+	//TODO: parse STYLE tag. GUMBO can't get this tag content
 
 	if( node->v.element.tag == GUMBO_TAG_LINK ) {
 		GumboAttribute* href = gumbo_get_attribute(&node->v.element.attributes, "href");
@@ -95,9 +96,16 @@ void Page::FindStyles(GumboNode* node) {
 				//If absolute path
 				if( value.compare(0,1, "/") == 0 ) {
 					cssPath = projectName + value;
-				
+				}	
+				//If file from another domain | current but with full path
+				else if(  
+					value.find("http") != string::npos ||
+					value.find("www") != string::npos
+				) {
+					cssPath = value;	
+				}
 				//If path to styles relative
-				} else {
+				else {
 					if( name == "index" ) {
 						cssPath = projectName + value;	
 					} else {
@@ -125,6 +133,55 @@ void Page::FindStyles(GumboNode* node) {
 	}
 }
 
+void Page::FindImages(GumboNode* node) {
+	if( node->type != GUMBO_NODE_ELEMENT ) {
+		return;
+	}
+
+	if( node->v.element.tag == GUMBO_TAG_IMG ) {
+		GumboAttribute* src = gumbo_get_attribute(&node->v.element.attributes, "src");
+	
+		string value = src->value;
+		string imgPath, imgName;
+
+		//If absolute path
+		if( value.compare(0,1, "/") == 0 ) {
+			imgPath = projectName + value;
+	
+		}
+		//If file from another domain | current but with full path
+		else if(  
+			value.find("http") != string::npos ||
+			value.find("www") != string::npos
+		) {
+			imgPath = value;	
+		}
+		//If path to iameg is relative
+		else {
+			if( name == "index" ) {
+				imgPath = projectName + value;	
+			} else {
+				imgPath = projectName + name + value;	
+			}
+		}
+
+		//Get image name
+		cmatch _match;
+		regex_match(src->value, _match, regex(".+/(.+)$"));
+		imgName = _match[1];
+
+		//Load image
+		if( downloadFile(imgPath, (Page::pageDir + "/images/" + imgName ).c_str() ) != 0 ) {
+			cout << "-----| Page file download error."<< endl;
+		};
+	}
+
+	GumboVector* children = &node->v.element.children;
+
+	for( int i = 0; i < children->length; i++ ) {
+		Page::FindImages(static_cast<GumboNode*>(children->data[i]));	
+	}
+}
 
 void Page::ParseHTML() 
 {
@@ -136,10 +193,15 @@ void Page::ParseHTML()
 		cout << "-----| Create CSS directory error: " << strerror(errno) << endl;
 	};
 	
+	//Create IMG dir
+	if( mkdir((Page::pageDir + "/images").c_str(), S_IRWXU) == -1 ) {
+		cout << "-----| Create IMAGES directory error: " << strerror(errno) << endl;
+	};
+	
 	/* Use GUMBO to parse and load styles */
     GumboOutput* out = gumbo_parse(html.c_str());	
 	Page::FindStyles(out->root);
-	//TODO: find and load images
+	Page::FindImages(out->root);
 }
 
 
