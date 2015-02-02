@@ -11,7 +11,16 @@ int downloadFile(string address, string filename) {
 	errno = 0;
 
 	string commandName = "curl -s -o";
-	string command = commandName+ " " +filename+ " " +address;
+
+	//If file name has GET params remove them
+	int paramsPos;
+	if( 
+		(paramsPos = filename.find("?")) != string::npos 
+	) {
+		filename = filename.substr(0,paramsPos);
+	}
+
+	string command = commandName+ " " +filename+ " '" +address+ "'";
 
     if( !(pipe = popen(command.c_str(), "r")) ) {
         exit(1);
